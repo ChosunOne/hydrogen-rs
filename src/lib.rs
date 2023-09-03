@@ -1,44 +1,43 @@
-use std::char;
+mod generator;
+mod parser;
+mod tokenizer;
 
-#[derive(Debug)]
-pub enum Token {
-    Return,
-    IntLit(Option<String>),
-    Semi,
+use parser::ParseError;
+use std::fs;
+use std::io::prelude::*;
+use std::path::PathBuf;
+use thiserror::Error;
+use tokenizer::{tokenize_source, TokenError};
+
+use crate::generator::generate;
+use crate::parser::parse;
+
+#[derive(Debug, Error)]
+pub enum CompileError {
+    #[error("CompileError: {0}")]
+    File(#[from] std::io::Error),
+    #[error("CompileError: {0}")]
+    Token(#[from] TokenError),
+    #[error("CompileError: {0}")]
+    Parse(#[from] ParseError),
 }
 
-impl TryFrom<&str> for Token {
-    type Error = String;
+pub fn compile(source_file: &str) -> Result<PathBuf, CompileError> {
+    let file_contents = fs::read_to_string(source_file)?;
+    let tokens = tokenize_source(&file_contents)?;
+    let tree = parse(tokens.iter())?;
+    let generated_code = generate(tree);
 
-    fn try_from(val: &str) -> Result<Self, Self::Error> {
-        let first_char = val.chars().next().unwrap();
+    let out_file_path = PathBuf::from(source_file)
+        .file_stem()
+        .map(|s| s.to_owned())
+        .unwrap_or(std::env::current_dir()?.into_os_string());
 
-        match (char::is_alphabetic(first_char), val) {
-            (true, "return") => Ok(Token::Return),
-            (true, invalid_token) => Err(format!("Invalid token: {invalid_token}")),
-            (false, ";") => Ok(Token::Semi),
-            (false, val) => match (val.chars().all(|c| char::is_digit(c, 10)), val) {
-                (true, number_val) => Ok(Token::IntLit(Some(number_val.into()))),
-                (false, invalid_token) => Err(format!("Invalid token: {invalid_token}")),
-            },
-        }
-    }
-}
+    let mut out_file = PathBuf::from(out_file_path);
+    out_file.set_extension("asm");
 
-pub fn split_with_char<'a, 'b>(strings: &'a [&'a str], character: &'a str) -> Vec<&'a str> {
-    let mut new_vec = Vec::<&str>::new();
-    for s in strings.iter() {
-        let mut start = 0;
-        while let Some(pos) = s[start..].find(character) {
-            let actual_pos = start + pos;
-            new_vec.push(s[start..actual_pos].into());
-            new_vec.push(character.into());
-            start = actual_pos + 1;
-        }
+    let mut out = fs::File::create(out_file.clone())?;
+    out.write_all(generated_code.as_bytes())?;
 
-        if start < s.len() {
-            new_vec.push(s[start..].into());
-        }
-    }
-    new_vec
+    Ok(out_file)
 }

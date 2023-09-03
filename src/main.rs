@@ -1,8 +1,8 @@
 use std::env;
-use std::fs;
-use std::process::ExitCode;
+use std::path::PathBuf;
+use std::process::{Command, ExitCode};
 
-use hydrogen::{split_with_char, Token};
+use hydrogen::compile;
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
@@ -11,14 +11,35 @@ fn main() -> ExitCode {
         eprintln!("hydro input.hy");
         return ExitCode::FAILURE;
     }
-    let filename = args[1].as_str();
-    let file_contents = fs::read_to_string(filename).expect("File {filename} not found");
-    let split_contents = file_contents.split_whitespace().collect::<Vec<_>>();
-    let split_with_semi_contents = split_with_char(&split_contents, ";");
-    let tokens = split_with_semi_contents
-        .into_iter()
-        .map(|s| Token::try_from(s))
-        .collect::<Vec<_>>();
-    println!("{tokens:?}");
-    ExitCode::SUCCESS
+    let src_file = args[1].as_str();
+    match compile(src_file) {
+        Ok(out_file) => {
+            Command::new("nasm")
+                .args(["-felf64", &out_file.to_string_lossy()])
+                .output()
+                .expect("Failed to create object file");
+
+            let mut object_path =
+                PathBuf::from(out_file.file_stem().unwrap().to_string_lossy().to_string());
+            object_path.set_extension("o");
+            let bin_out =
+                PathBuf::from(out_file.file_stem().unwrap().to_string_lossy().to_string());
+
+            let mut bin_path = env::current_dir().expect("Failed to get current dir");
+            bin_path.push(bin_out);
+            Command::new("ld")
+                .args([
+                    &object_path.to_string_lossy(),
+                    "-o",
+                    &out_file.file_stem().unwrap().to_string_lossy(),
+                ])
+                .output()
+                .expect("Failed to link object file");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::FAILURE
+        }
+    }
 }
