@@ -2,4 +2,5 @@
 *.asm
 *.o
 *.hy
+*.vim
 test

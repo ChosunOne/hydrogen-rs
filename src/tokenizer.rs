@@ -1,3 +1,4 @@
+use crate::constants::*;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -40,12 +41,12 @@ impl TryFrom<&str> for Keywords {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "exit" => Ok(Self::Exit),
-            ";" => Ok(Self::Semi),
-            "(" => Ok(Self::OpenParenthesis),
-            ")" => Ok(Self::CloseParenthesis),
-            "let" => Ok(Self::Let),
-            "=" => Ok(Self::Assign),
+            KW_EXIT => Ok(Self::Exit),
+            KW_SEMI => Ok(Self::Semi),
+            KW_OPEN_PARENTHESIS => Ok(Self::OpenParenthesis),
+            KW_CLOSE_PARENTHESIS => Ok(Self::CloseParenthesis),
+            KW_LET => Ok(Self::Let),
+            KW_ASSIGN => Ok(Self::Assign),
             _ => Err(TokenError::Keyword(value.into())),
         }
     }
@@ -90,13 +91,15 @@ pub fn split_with_char(strings: &[String], character: &'static str) -> Vec<Strin
 }
 
 fn split_tokens(src: &str) -> Vec<String> {
-    let split_src = src
+    let mut split_src = src
         .split_whitespace()
         .map(str::to_string)
         .collect::<Vec<_>>();
-    let split_src = split_with_char(&split_src, ";");
-    let split_src = split_with_char(&split_src, "(");
-    let split_src = split_with_char(&split_src, ")");
+
+    for kw in TOKENIZER_KEYWORDS {
+        split_src = split_with_char(&split_src, kw);
+    }
+
     split_src
         .into_iter()
         .filter(|s| !str::is_empty(s))
