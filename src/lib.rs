@@ -2,15 +2,14 @@ mod generator;
 mod parser;
 mod tokenizer;
 
-use parser::ParseError;
+use parser::{parse_program, ParseError};
 use std::fs;
 use std::io::prelude::*;
 use std::path::PathBuf;
 use thiserror::Error;
 use tokenizer::{tokenize_source, TokenError};
 
-use crate::generator::generate;
-use crate::parser::parse;
+use generator::GeneratorError;
 
 #[derive(Debug, Error)]
 pub enum CompileError {
@@ -20,13 +19,15 @@ pub enum CompileError {
     Token(#[from] TokenError),
     #[error("CompileError: {0}")]
     Parse(#[from] ParseError),
+    #[error("CompileError: {0}")]
+    Generate(#[from] GeneratorError),
 }
 
 pub fn compile(source_file: &str) -> Result<PathBuf, CompileError> {
     let file_contents = fs::read_to_string(source_file)?;
     let tokens = tokenize_source(&file_contents)?;
-    let tree = parse(tokens.iter())?;
-    let generated_code = generate(tree);
+    let tree = parse_program(&mut tokens.iter())?;
+    let generated_code = tree.generate()?;
 
     let out_file_path = PathBuf::from(source_file)
         .file_stem()

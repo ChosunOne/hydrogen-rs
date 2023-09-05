@@ -3,21 +3,36 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum TokenError {
     #[error("{0} is not a keyword")]
-    KeywordError(String),
+    Keyword(String),
     #[error("Invalid token: {0}")]
     InvalidToken(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Token {
     IntLit(String),
+    Ident(String),
     Keyword(Keywords),
 }
 
-#[derive(Debug, Clone)]
+impl Token {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::IntLit(s) => s.clone(),
+            Self::Ident(s) => s.clone(),
+            Self::Keyword(kw) => format!("{kw:?}"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Keywords {
     Exit,
     Semi,
+    OpenParenthesis,
+    CloseParenthesis,
+    Let,
+    Assign,
 }
 
 impl TryFrom<&str> for Keywords {
@@ -27,7 +42,11 @@ impl TryFrom<&str> for Keywords {
         match value {
             "exit" => Ok(Self::Exit),
             ";" => Ok(Self::Semi),
-            _ => Err(TokenError::KeywordError(value.into())),
+            "(" => Ok(Self::OpenParenthesis),
+            ")" => Ok(Self::CloseParenthesis),
+            "let" => Ok(Self::Let),
+            "=" => Ok(Self::Assign),
+            _ => Err(TokenError::Keyword(value.into())),
         }
     }
 }
@@ -42,7 +61,7 @@ impl TryFrom<&str> for Token {
         if val.chars().all(|c| char::is_digit(c, 10)) {
             return Ok(Token::IntLit(val.into()));
         }
-        Err(TokenError::InvalidToken(val.into()))
+        Ok(Token::Ident(val.into()))
     }
 }
 
@@ -52,14 +71,14 @@ impl From<Keywords> for Token {
     }
 }
 
-pub fn split_with_char<'a>(strings: &'a [&'a str], character: &'a str) -> Vec<&'a str> {
-    let mut new_vec = Vec::<&str>::new();
+pub fn split_with_char(strings: &[String], character: &'static str) -> Vec<String> {
+    let mut new_vec = Vec::<String>::new();
     for s in strings {
         let mut start = 0;
         while let Some(pos) = s[start..].find(character) {
             let actual_pos = start + pos;
             new_vec.push(s[start..actual_pos].into());
-            new_vec.push(character);
+            new_vec.push(character.into());
             start = actual_pos + 1;
         }
 
@@ -70,12 +89,25 @@ pub fn split_with_char<'a>(strings: &'a [&'a str], character: &'a str) -> Vec<&'
     new_vec
 }
 
-pub(crate) fn tokenize_source(src: &str) -> Result<Vec<Token>, TokenError> {
-    let split_contents = src.split_whitespace().collect::<Vec<_>>();
-    let split_with_semi_contents = split_with_char(&split_contents, ";");
-    let tokens = split_with_semi_contents
+fn split_tokens(src: &str) -> Vec<String> {
+    let split_src = src
+        .split_whitespace()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    let split_src = split_with_char(&split_src, ";");
+    let split_src = split_with_char(&split_src, "(");
+    let split_src = split_with_char(&split_src, ")");
+    split_src
         .into_iter()
-        .map(Token::try_from)
+        .filter(|s| !str::is_empty(s))
+        .collect()
+}
+
+pub(crate) fn tokenize_source(src: &str) -> Result<Vec<Token>, TokenError> {
+    let split_src = split_tokens(src);
+    let tokens = split_src
+        .into_iter()
+        .map(|s| Token::try_from(s.as_str()))
         .collect::<Vec<_>>();
     tokens.into_iter().collect()
 }
