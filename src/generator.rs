@@ -1,4 +1,4 @@
-use crate::parser::{NodeExpr, NodeProgram, NodeStatement};
+use crate::parser::{NodeBinExpr, NodeExpr, NodeProgram, NodeStatement, NodeTerm};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -82,6 +82,32 @@ impl Generate for NodeStatement {
 }
 
 impl Generate for NodeExpr {
+    fn generate(&self, generator: &mut Generator) -> Result<String, GeneratorError> {
+        match self {
+            Self::Term(t) => t.generate(generator),
+            Self::BinExpr(b) => b.generate(generator),
+        }
+    }
+}
+
+impl Generate for NodeBinExpr {
+    fn generate(&self, generator: &mut Generator) -> Result<String, GeneratorError> {
+        match self {
+            Self::Add(bin_expr) => {
+                let mut asm = bin_expr.lhs.generate(generator)?;
+                asm.push_str(&bin_expr.rhs.generate(generator)?);
+                asm.push_str(&generator.pop("rax"));
+                asm.push_str(&generator.pop("rbx"));
+                asm.push_str("\tadd rax, rbx\n");
+                asm.push_str(&generator.push("rax"));
+                Ok(asm)
+            }
+            _ => todo!(),
+        }
+    }
+}
+
+impl Generate for NodeTerm {
     fn generate(&self, generator: &mut Generator) -> Result<String, GeneratorError> {
         match self {
             Self::IntLit(t) => {

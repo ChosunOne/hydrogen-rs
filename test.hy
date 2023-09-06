@@ -1,5 +1,3 @@
-let x = 7;
+let x = 1 + 2 + 3;
 let y = 8;
-let z = 9;
-exit(z);
-
+exit(x);

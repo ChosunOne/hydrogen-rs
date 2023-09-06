@@ -27,6 +27,11 @@ impl Token {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Operators {
+    Plus,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Keywords {
     Exit,
     Semi,
@@ -34,6 +39,7 @@ pub(crate) enum Keywords {
     CloseParenthesis,
     Let,
     Assign,
+    Operator(Operators),
 }
 
 impl TryFrom<&str> for Keywords {
@@ -47,6 +53,7 @@ impl TryFrom<&str> for Keywords {
             KW_CLOSE_PARENTHESIS => Ok(Self::CloseParenthesis),
             KW_LET => Ok(Self::Let),
             KW_ASSIGN => Ok(Self::Assign),
+            KW_OP_PLUS => Ok(Self::Operator(Operators::Plus)),
             _ => Err(TokenError::Keyword(value.into())),
         }
     }

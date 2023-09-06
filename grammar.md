@@ -1,16 +1,24 @@
 $$
 \begin{align}
-[\text{prog}] &\to [\text{stmt}]^* \\
-[\text{stmt}] &\to 
+[\text{Prog}] &\to [\text{Stmt}]^* \\
+[\text{Stmt}] &\to 
 \begin{cases} 
-    \text{exit}([\text{expr}]); \\
-    \text{let}\space \text{ident} = [\text{expr}]; \\
+    \text{Exit}([\text{Expr}]); \\
+    \text{Let}\space \text{Ident} = [\text{Expr}]; \\
 \end{cases} \\
-[\text{expr}] &\to 
+[\text{Expr}] &\to 
 \begin{cases}
-    \text{int\_lit} \\
-    \text{ident}
+    \text{[Term]} \\ 
+    \text{[BinExpr]}
+\end{cases} \\
+[\text{BinExpr}] &\to 
+[\text{Expr}] \oplus [\text{Expr}] \quad \text{prec} = i \\
+[\text{Term}] &\to
+\begin{cases}
+    \text{Int\_Lit} \\
+    \text{Ident}
 \end{cases}
+
 \end{align}
 $$
 
